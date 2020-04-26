@@ -53,7 +53,7 @@ class Application(tk.Frame):
             prayer_name = KEYS_INTERESTED[i]
             prayer_time = prayer_timings[prayer_name]
             name_label = tk.Label(self.grid_frame, text=prayer_name.replace("(EDT)",""))
-            time_label = tk.Label(self.grid_frame, text=prayer_time.replace("(EDT)",""))
+            time_label = tk.Label(self.grid_frame, text=convertMilToMerid(prayer_time.replace("(EDT)","")))
             
             name_label.grid(row=i+1, column=0)
             time_label.grid(row=i+1, column=1)
@@ -248,6 +248,13 @@ def formatTimeUntilNextPrayer(time_delta, idx):
     out_str += pieces_string + " until " + KEYS_INTERESTED[idx]
     return out_str
 
+def convertMilToMerid(time_str):
+    hours, mins = [int(i) for i in time_str.split(":")]
+    merid = "a.m."
+    if hours > 12:
+        hours -= 12
+        merid = "p.m."
+    return str(hours) + ":" + str(mins) + " " + str(merid)
 
 def clock_main(today_timings, tomorrow_timings):
     looping = True
@@ -258,7 +265,6 @@ def clock_main(today_timings, tomorrow_timings):
     global globl_looping
     global app
     time_diff, next_idx = getTimeUntilNextPrayer(today_timings, tomorrow_timings, idx)
-    print(formatTimeUntilNextPrayer(time_diff, next_idx))
     while globl_looping:
         current_time = datetime.datetime.today()
         # If the day changes during runtime then reload again
@@ -266,10 +272,15 @@ def clock_main(today_timings, tomorrow_timings):
             if current_time.day != previous_time.day:
                 today_timings, tomorrow_timings = reloadTimings()
         time.sleep(.98)
+        if not(globl_looping):
+            break
         idx = getLastPastPrayer(today_timings)
         time_diff, next_idx = getTimeUntilNextPrayer(today_timings, tomorrow_timings, idx)
         globl_prayer_string = formatTimeUntilNextPrayer(time_diff, next_idx)
-        app.update_prayer_time()
+        if globl_looping:
+            app.update_prayer_time()
+        else:
+            break
         previous_time = current_time
     return 
 
@@ -295,7 +306,6 @@ def main():
     
     app = Application(today_timings, master=root)
     app.mainloop()
-    time.sleep(2)
     globl_looping = False
     clock_thread.join()
     
