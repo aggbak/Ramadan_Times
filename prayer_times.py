@@ -5,6 +5,7 @@ import json
 import urllib.request
 import os.path
 import time
+import winsound
 import threading
 
 
@@ -15,8 +16,18 @@ KEYS_INTERESTED = ["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"]
 globl_prayer_string = ""
 globl_looping = True
 globl_prayer_text = None
-
+globl_time_to_pray = False
+globl_calling_athan = False
 app = None
+
+def callAthanThread():
+    # Wait a minute to call athan
+    time.sleep(60)
+    winsound.PlaySound("athan.wav", winsound.SND_FILENAME)
+    global global_calling_athan
+    globl_calling_athan = False
+    return None
+
 class Application(tk.Frame):
     def __init__(self, today_timings, master=None):
         super().__init__(master)
@@ -46,7 +57,7 @@ class Application(tk.Frame):
         self.pr_title.grid(row=0, column=0)
         self.time_title = tk.Label(self.grid_frame, text="Time (EDT)")
         self.time_title.grid(row=0, column=1)
-
+        self.athan_thread = threading.Thread(target=callAthanThread)
         # Get the timings
         prayer_timings = self.today_timings["timings"]
         for i in range(5):
@@ -57,21 +68,25 @@ class Application(tk.Frame):
             
             name_label.grid(row=i+1, column=0)
             time_label.grid(row=i+1, column=1)
-            
-            
-        
-        # Populate the grid
-        
         
         # Tack on prayer label to bottom
         self.prayer_label.pack()
 
-
+    # Have this also be kind of a clock tick
     def update_prayer_time(self):
         global globl_prayer_string
         self.pt.set(globl_prayer_string)
+        global globl_time_to_pray
+        global globl_calling_athan
+        # Check if it is time for a prayer
+        if globl_time_to_pray and globl_calling_athan == False:
+            globl_calling_athan = True
+            print("Calling athan")
+            self.athan_thread.start()
+            
 
         
+
 
 
 def getTomorrowDate():
@@ -234,9 +249,12 @@ def formatTimeUntilNextPrayer(time_delta, idx):
     pieces[1][0] = diff_mins
     pieces[2][0] = diff_secs
     # Do checks for if it is that prayers time (be accurate to the minute)
-    if diff_hours == 0 and diff_mins == 0 and diff_secs == 0:
+    if diff_hours == 0 and diff_mins == 0:
+        global globl_time_to_pray
+        globl_time_to_pray = True
         return "It is time for " + KEYS_INTERESTED[idx] + "!"
-    
+
+    globl_time_to_pray = False
     # Do checks to convert plural units to singular
     for i in range(0, 3):
         if pieces[i][0] == 1:
